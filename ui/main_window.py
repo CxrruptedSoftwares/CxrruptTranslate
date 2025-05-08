@@ -6,10 +6,14 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPalette, QColor, QFont, QIcon, QLinearGradient, QGradient
 from services.translator import Translator
 from services.vrchat import VRChatService
+from utils.logger import Logger
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.logger = Logger()
+        self.logger.info('Initializing main window')
+        
         self.translator = Translator()
         self.vrchat = VRChatService()
         self.auto_translate_timer = QTimer()
@@ -17,6 +21,7 @@ class MainWindow(QMainWindow):
         self.last_text = ""
         self.init_ui()
         self.setup_theme()
+        self.logger.info('Main window initialized')
 
     def init_ui(self):
         self.setWindowTitle('CxrruptTranslate')
@@ -254,17 +259,23 @@ class MainWindow(QMainWindow):
         """)
 
     def translate_text(self):
-        source_text = self.input_text.toPlainText()
-        source_lang = self.source_lang.currentText()
-        target_lang = self.target_lang.currentText()
-        
-        if source_text:
-            translated_text = self.translator.translate(
-                source_text, 
-                source_lang, 
-                target_lang
-            )
-            self.output_text.setText(translated_text)
+        try:
+            source_text = self.input_text.toPlainText()
+            if not source_text:
+                self.logger.warning('Attempted translation with empty input')
+                return
+                
+            source_lang = self.source_lang.currentText()
+            target_lang = self.target_lang.currentText()
+            
+            self.logger.info(f'Translating from {source_lang} to {target_lang}')
+            translated_text = self.translator.translate(source_text, source_lang, target_lang)
+            self.output_text.setPlainText(translated_text)
+            self.logger.debug('Translation completed successfully')
+            
+        except Exception as e:
+            self.logger.error(f'Translation error: {str(e)}')
+            self.output_text.setPlainText("Translation error occurred. Please try again.")
 
     def copy_to_vrchat(self):
         translated_text = self.output_text.toPlainText()
