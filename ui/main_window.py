@@ -1,11 +1,11 @@
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QTextEdit, QComboBox, 
                              QPushButton, QLabel, QLineEdit, QGroupBox,
                              QCheckBox, QSpinBox, QFrame)
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPalette, QColor, QFont, QIcon, QLinearGradient, QGradient
-from services.translator import Translator
-from services.vrchat import VRChatService
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QPalette, QColor, QFont, QIcon, QLinearGradient, QGradient
+from utils.translator import Translator
+from utils.osc_client import OSCClient
 from utils.logger import Logger
 
 class MainWindow(QMainWindow):
@@ -15,10 +15,12 @@ class MainWindow(QMainWindow):
         self.logger.info('Initializing main window')
         
         self.translator = Translator()
-        self.vrchat = VRChatService()
+        self.osc_client = OSCClient()
+        
         self.auto_translate_timer = QTimer()
         self.auto_translate_timer.timeout.connect(self.auto_translate)
         self.last_text = ""
+        
         self.init_ui()
         self.setup_theme()
         self.logger.info('Main window initialized')
@@ -36,7 +38,7 @@ class MainWindow(QMainWindow):
 
         # Title
         title_label = QLabel("CxrruptTranslate")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title_label.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(24)
         title_font.setBold(True)
@@ -141,19 +143,19 @@ class MainWindow(QMainWindow):
     def setup_theme(self):
         # Set purple and black theme
         palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
-        palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Base, QColor(20, 20, 20))
-        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(40, 40, 40))
-        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(20, 20, 20))
-        palette.setColor(QPalette.ColorRole.ToolTipText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Text, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.Button, QColor(40, 40, 40))
-        palette.setColor(QPalette.ColorRole.ButtonText, Qt.GlobalColor.white)
-        palette.setColor(QPalette.ColorRole.BrightText, Qt.GlobalColor.red)
-        palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
-        palette.setColor(QPalette.ColorRole.Highlight, QColor(42, 130, 218))
-        palette.setColor(QPalette.ColorRole.HighlightedText, Qt.GlobalColor.black)
+        palette.setColor(QPalette.Window, QColor(30, 30, 30))
+        palette.setColor(QPalette.WindowText, Qt.white)
+        palette.setColor(QPalette.Base, QColor(20, 20, 20))
+        palette.setColor(QPalette.AlternateBase, QColor(40, 40, 40))
+        palette.setColor(QPalette.ToolTipBase, QColor(20, 20, 20))
+        palette.setColor(QPalette.ToolTipText, Qt.white)
+        palette.setColor(QPalette.Text, Qt.white)
+        palette.setColor(QPalette.Button, QColor(40, 40, 40))
+        palette.setColor(QPalette.ButtonText, Qt.white)
+        palette.setColor(QPalette.BrightText, Qt.red)
+        palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.HighlightedText, Qt.black)
 
         self.setPalette(palette)
 
@@ -278,20 +280,28 @@ class MainWindow(QMainWindow):
             self.output_text.setPlainText("Translation error occurred. Please try again.")
 
     def copy_to_vrchat(self):
-        translated_text = self.output_text.toPlainText()
-        if translated_text:
-            self.vrchat.send_to_chatbox(translated_text)
+        try:
+            translated_text = self.output_text.toPlainText()
+            if translated_text:
+                self.logger.info('Sending text to VRChat')
+                self.osc_client.send_message(translated_text)
+                self.logger.debug('Text sent successfully to VRChat')
+        except Exception as e:
+            self.logger.error(f'Failed to send text to VRChat: {str(e)}')
 
     def apply_osc_settings(self):
         try:
             ip = self.ip_input.text()
             port = int(self.port_input.text())
-            self.vrchat.set_osc_settings(ip, port)
-        except ValueError:
-            print("Invalid port number")
+            self.osc_client = OSCClient(ip, port)
+            self.logger.info(f'OSC settings updated: {ip}:{port}')
+        except ValueError as e:
+            self.logger.error(f'Invalid port number: {str(e)}')
+        except Exception as e:
+            self.logger.error(f'Failed to apply OSC settings: {str(e)}')
 
     def toggle_auto_translate(self, state):
-        if state == Qt.CheckState.Checked.value:
+        if state == Qt.Checked:
             self.auto_translate_timer.start(self.delay_spin.value())
         else:
             self.auto_translate_timer.stop()

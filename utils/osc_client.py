@@ -2,12 +2,12 @@ from pythonosc import udp_client
 from utils.logger import Logger
 
 class OSCClient:
-    def __init__(self):
+    def __init__(self, ip="127.0.0.1", port=9000):
         self.logger = Logger()
         self.logger.info('Initializing OSC client')
         try:
-            self.client = udp_client.SimpleUDPClient("127.0.0.1", 9000)
-            self.logger.debug('OSC client initialized successfully')
+            self.client = udp_client.SimpleUDPClient(ip, port)
+            self.logger.debug(f'OSC client initialized successfully at {ip}:{port}')
         except Exception as e:
             self.logger.error(f'Failed to initialize OSC client: {str(e)}')
             raise
